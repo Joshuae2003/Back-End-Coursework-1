@@ -50,11 +50,6 @@ app.param('collectionName', async function (req, res, next, collectionName) {
   next();
 });
 
-// Serve your index.html file when accessing the root route
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
 // get all data from our collection in Mongodb
 app.get('/collections/products', async function (req, res, next) {
   try {
@@ -66,48 +61,95 @@ app.get('/collections/products', async function (req, res, next) {
 
   } catch (err) {
     console.error('Error fetching docs', err.message);
-    
+
     res.status(500).json({ error: 'Failed to fetch products' });
   }
 });
 
-app.get('/collections1/:collectionName', async function (req, res, next) {
-  const results = await req.collection.find({}, { limit: 3, sort: { price: -1 } })
+app.post('/collections/orders', async function (req, res, next) {
+  try {
+    // Extract data from the request body
+    const { name, surname, totalPrice, courses } = req.body;
+
+    // Check if required fields are provided
+    if (!name || !surname || !totalPrice || !courses || !Array.isArray(courses)) {
+      return res.status(400).json({ error: 'Invalid or missing fields in the request body' });
+    }
+
+    // Create an order object
+    const order = {
+      name,
+      surname,
+      totalPrice,
+      courses,
+      createdAt: new Date() // Add a timestamp for when the order was created
+    };
+
+    // Insert the order into the Orders collection
+    const results = await db1.collection('Orders').insertOne(order);
+
+    // Send success response
+    res.status(201).json({
+      message: 'Order created successfully',
+      orderId: results.insertedId
+    });
+  } catch (err) {
+    console.error('Error creating order:', err.message);
+    res.status(500).json({ error: 'Failed to create order' });
+  }
 });
 
-app.post('/collections/:collectionName', async function (req, res, next) {
+app.delete('/collections/products/title/:title', async function (req, res) {
   try {
+    const productTitle = req.params.title;
 
-  }
-  catch {
+    // Delete the product by title
+    const result = await db1.collection('Products').deleteOne({ title: productTitle });
 
+    // Check if the product was found and deleted
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    res.status(200).json({ message: 'Product deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting product by title:', err.message);
+    res.status(500).json({ error: 'Failed to delete product' });
   }
 });
 
-app.delete('/collections/:collectionName/:id', async function (req, res, next) {
+app.put('/collections/products/update-availability', async function (req, res) {
   try {
-    console.log('Recieved Request :', req.params.id);
+    const { products } = req.body;
 
-    const results = await req.collection.deleteOne({ _id: new ObjectId(req.params.id) });
+    // Validate the request body
+    if (!products || !Array.isArray(products)) {
+      return res.status(400).json({ error: 'Invalid or missing products data' });
+    }
 
-    console.log('Deleted data:', results);
+    // Iterate over the products and update availability for each
+    for (const product of products) {
+      if (!product.title || !product.quantity) {
+        return res.status(400).json({ error: 'Each product must have a title and quantity' });
+      }
 
-    res.json((results.deleteCount === 1)) ? { msg: "Success" } : { msg: "Error" }
-  }
-  catch {
+      // Update the product's available inventory
+      const result = await db1.collection('Products').updateOne(
+        { title: product.title },
+        { $inc: { availableInventory: -product.quantity } }
+      );
 
-  }
-});
+      // Check if the product was found and updated
+      if (result.matchedCount === 0) {
+        console.warn(`Product with title "${product.title}" not found`);
+      }
+    }
 
-app.put('/collections/:collectionName/:id', async function (req, res, next) {
-  try {
-    console.log("recieved Request :", req.params.id);
-
-    const results = await req.collection.updateOne({ _id: new ObjectId(req.params.id) });
-
-  }
-  catch {
-
+    // Respond with success
+    res.status(200).json({ message: 'Product availability updated successfully' });
+  } catch (err) {
+    console.error('Error updating product availability:', err.message);
+    res.status(500).json({ error: 'Failed to update product availability' });
   }
 });
 
