@@ -19,8 +19,10 @@ const dbPassword = properties.get('db.password');
 const dbParams = properties.get('db.params');
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+
 // MongoDB connection URL
 const uri = `${dbPrefix}${dbUser}:${dbPassword}${dbHost}${dbParams}`;
+
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, { serverApi: ServerApiVersion.v1 });
 
@@ -53,29 +55,24 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Ensure this route is defined after the middleware app.param
 // get all data from our collection in Mongodb
 app.get('/collections/products', async function (req, res, next) {
   try {
     const results = await db1.collection('Products').find({}).toArray();
+
     console.log('Retrieved data:', results);
+
     res.json(results); // Send the products to the frontend
+
   } catch (err) {
     console.error('Error fetching docs', err.message);
+    
     res.status(500).json({ error: 'Failed to fetch products' });
   }
 });
 
 app.get('/collections1/:collectionName', async function (req, res, next) {
   const results = await req.collection.find({}, { limit: 3, sort: { price: -1 } })
-});
-
-app.get('/collections/:collectionName/:max/:sortAspect/:sortAscDesc', async function (req, res, next) {
-
-});
-
-app.get('/collections/:collectionName/:id', async function (req, res, next) {
-
 });
 
 app.post('/collections/:collectionName', async function (req, res, next) {
