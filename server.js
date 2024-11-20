@@ -157,6 +157,11 @@ app.get('/collections/products/search', async function (req, res) {
   try {
     const { search = '', sortKey = 'title', sortOrder = 'asc' } = req.query;
 
+    // Log the incoming request
+    console.log('Search Query:', search);
+    console.log('Sort Key:', sortKey);
+    console.log('Sort Order:', sortOrder);
+
     // Search query: Matches title, description, or location
     const query = search
       ? { $or: ['title', 'description', 'location'].map(field => ({ [field]: { $regex: search, $options: 'i' } })) }
