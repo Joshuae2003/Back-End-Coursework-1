@@ -157,25 +157,35 @@ app.get('/collections/products/search', async function (req, res) {
   try {
     const { search = '', sortKey = 'title', sortOrder = 'asc' } = req.query;
 
-    // Log the incoming request
+    // Log the incoming request for debugging
     console.log('Search Query:', search);
     console.log('Sort Key:', sortKey);
     console.log('Sort Order:', sortOrder);
 
-    // Search query: Matches title, description, or location
+    // Build the search query: Matches title, description, or location
     const query = search
-      ? { $or: ['title', 'description', 'location'].map(field => ({ [field]: { $regex: search, $options: 'i' } })) }
+      ? {
+        $or: [
+          { title: { $regex: search, $options: 'i' } }, // Case-insensitive search in title
+          { description: { $regex: search, $options: 'i' } }, // Case-insensitive search in description
+          { location: { $regex: search, $options: 'i' } } // Case-insensitive search in location
+        ]
+      }
       : {};
 
-    // Sort options
+    // Sort options: Use `1` for ascending and `-1` for descending
     const sortOptions = { [sortKey]: sortOrder === 'asc' ? 1 : -1 };
 
-    // Fetch results
+    // Fetch filtered and sorted products from MongoDB
     const results = await db1.collection('Products').find(query).sort(sortOptions).toArray();
 
-    res.json(results);
+    // Log the results for debugging
+    console.log('Search Results:', results);
+
+    // Return the results to the frontend
+    res.status(200).json(results);
   } catch (err) {
-    console.error(err);
+    console.error('Error fetching products:', err.message);
     res.status(500).json({ error: 'Failed to fetch products' });
   }
 });
