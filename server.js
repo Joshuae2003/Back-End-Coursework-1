@@ -51,7 +51,7 @@ app.param('collectionName', async function (req, res, next, collectionName) {
 });
 
 // get all data from our collection in Mongodb
-app.get('/collections/products', async function (req, res, next) {
+app.get('/collections/courses', async function (req, res, next) {
   try {
     const results = await db1.collection('Products').find({}).toArray();
 
@@ -82,7 +82,7 @@ app.post('/collections/orders', async function (req, res, next) {
       surname,
       totalPrice,
       courses,
-      createdAt: new Date() // Add a timestamp for when the order was created
+      createdAt: new Date()
     };
 
     // Insert the order into the Orders collection
@@ -150,6 +150,28 @@ app.put('/collections/products/update-availability', async function (req, res) {
   } catch (err) {
     console.error('Error updating product availability:', err.message);
     res.status(500).json({ error: 'Failed to update product availability' });
+  }
+});
+
+app.get('/collections/products/search', async function (req, res) {
+  try {
+    const { search = '', sortKey = 'title', sortOrder = 'asc' } = req.query;
+
+    // Search query: Matches title, description, or location
+    const query = search
+      ? { $or: ['title', 'description', 'location'].map(field => ({ [field]: { $regex: search, $options: 'i' } })) }
+      : {};
+
+    // Sort options
+    const sortOptions = { [sortKey]: sortOrder === 'asc' ? 1 : -1 };
+
+    // Fetch results
+    const results = await db1.collection('Products').find(query).sort(sortOptions).toArray();
+
+    res.json(results);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch products' });
   }
 });
 
