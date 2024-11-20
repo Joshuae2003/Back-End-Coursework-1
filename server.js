@@ -1,7 +1,11 @@
 var express = require("express");
 let app = express();
 const cors = require("cors");
-app.use(cors());
+app.use(cors({
+  origin: "https://joshuae2003.github.io", // Allow requests from your GitHub Pages site
+  methods: "GET,POST,PUT,DELETE", // Allowed HTTP methods
+  allowedHeaders: "Content-Type" // Allowed headers
+}));
 app.use(express.json());
 app.set('json spaces', 3);
 const path = require('path');
@@ -196,6 +200,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start the server
-app.listen(3000, () => {
-  console.log('Server is running on port 3000');
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
