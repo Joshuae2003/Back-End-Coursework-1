@@ -4,9 +4,9 @@ const cors = require("cors");
 
 // Set up CORS to allow requests from specific origins
 app.use(cors({
-  origin: "https://joshuae2003.github.io", // Allow requests from this URL
-  methods: "GET,POST,PUT,DELETE", // Allowed HTTP methods
-  allowedHeaders: "Content-Type" // Allowed headers
+  origin: "https://joshuae2003.github.io",
+  methods: "GET,POST,PUT,DELETE",
+  allowedHeaders: "Content-Type"
 }));
 
 // Middleware to parse incoming JSON payloads
@@ -58,8 +58,8 @@ connectDB(); // Call the function to establish the database connection
 
 // Middleware to dynamically assign a collection to a request
 app.param('collectionName', async function (req, res, next, collectionName) {
-  req.collection = db1.collection(collectionName); // Set the requested collection
-  console.log('Middleware set collection:', req.collection.collectionName); // Log for debugging
+  req.collection = db1.collection(collectionName);
+  console.log('Middleware set collection:', req.collection.collectionName);
   next();
 });
 
@@ -78,21 +78,22 @@ app.get('/collections/courses', async function (req, res, next) {
 // Endpoint to create a new order
 app.post('/collections/orders', async function (req, res, next) {
   try {
-    const { name, surname, phone, totalPrice, courses } = req.body; // Extract request data
+    const { orderId, name, surname, phone, totalPrice, courses } = req.body; // Extract request data
 
     // Validate request body
-    if (!name || !surname || !phone || !totalPrice || !courses || !Array.isArray(courses)) {
+    if (!orderId || !name || !surname || !phone || !totalPrice || !courses || !Array.isArray(courses)) {
       return res.status(400).json({ error: 'Invalid or missing fields in the request body' });
     }
 
     // Create an order object
     const order = {
+      orderId,
       name,
       surname,
       phone,
       totalPrice,
       courses,
-      createdAt: new Date() // Add a timestamp
+      createdAt: new Date()
     };
 
     // Insert the order into the "Orders" collection
