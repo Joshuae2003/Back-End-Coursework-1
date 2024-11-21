@@ -72,27 +72,23 @@ app.get('/collections/courses', async function (req, res, next) {
 
 app.post('/collections/orders', async function (req, res, next) {
   try {
-    // Extract data from the request body
-    const { name, surname, totalPrice, courses } = req.body;
+    const { name, surname, phone, totalPrice, courses } = req.body;
 
-    // Check if required fields are provided
-    if (!name || !surname || !totalPrice || !courses || !Array.isArray(courses)) {
+    if (!name || !surname || !phone || !totalPrice || !courses || !Array.isArray(courses)) {
       return res.status(400).json({ error: 'Invalid or missing fields in the request body' });
     }
 
-    // Create an order object
     const order = {
       name,
       surname,
+      phone, // Include phone number
       totalPrice,
       courses,
       createdAt: new Date()
     };
 
-    // Insert the order into the Orders collection
     const results = await db1.collection('Orders').insertOne(order);
 
-    // Send success response
     res.status(201).json({
       message: 'Order created successfully',
       orderId: results.insertedId
@@ -102,6 +98,7 @@ app.post('/collections/orders', async function (req, res, next) {
     res.status(500).json({ error: 'Failed to create order' });
   }
 });
+
 
 app.delete('/collections/products/title/:title', async function (req, res) {
   try {
@@ -170,9 +167,9 @@ app.get('/collections/products/search', async function (req, res) {
     const query = search
       ? {
         $or: [
-          { title: { $regex: search, $options: 'i' } }, // Case-insensitive search in title
-          { description: { $regex: search, $options: 'i' } }, // Case-insensitive search in description
-          { location: { $regex: search, $options: 'i' } } // Case-insensitive search in location
+          { title: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+          { location: { $regex: search, $options: 'i' } }
         ]
       }
       : {};
