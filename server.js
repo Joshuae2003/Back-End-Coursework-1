@@ -1,20 +1,28 @@
 var express = require("express");
 let app = express();
 const cors = require("cors");
+
+// Set up CORS to allow requests from specific origins
 app.use(cors({
-  origin: "https://joshuae2003.github.io", // Allow requests from your GitHub Pages site
+  origin: "https://joshuae2003.github.io", // Allow requests from this URL
   methods: "GET,POST,PUT,DELETE", // Allowed HTTP methods
   allowedHeaders: "Content-Type" // Allowed headers
 }));
+
+// Middleware to parse incoming JSON payloads
 app.use(express.json());
+
+// Set JSON formatting to include 3 spaces for better readability
 app.set('json spaces', 3);
+
 const path = require('path');
 let PropertiesReader = require("properties-reader");
-// Load properties from the file
+
+// Load database connection properties from a file
 let propertiesPath = path.resolve(__dirname, "./dbconnection.properties");
 let properties = PropertiesReader(propertiesPath);
 
-// Extract values from the properties file
+// Extract values from the properties file for MongoDB connection
 const dbPrefix = properties.get('db.prefix');
 const dbHost = properties.get('db.host');
 const dbName = properties.get('db.name');
@@ -24,179 +32,173 @@ const dbParams = properties.get('db.params');
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
-// MongoDB connection URL
+// Construct MongoDB connection URL
 const uri = `${dbPrefix}${dbUser}:${dbPassword}${dbHost}${dbParams}`;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
+// Create a MongoDB client
 const client = new MongoClient(uri, { serverApi: ServerApiVersion.v1 });
 
-let db1;//declare variable
+let db1; // Declare a variable to hold the database instance
+
+// Serve static files (e.g., frontend assets) from the current directory
 app.use(express.static(path.join(__dirname)));
 
-
+// Function to connect to MongoDB
 async function connectDB() {
   try {
-    client.connect();
+    client.connect(); // Connect to the MongoDB server
     console.log('Connected to MongoDB');
-    db1 = client.db('Website');
+    db1 = client.db('Website'); // Select the database
   } catch (err) {
-    console.error('MongoDB connection error:', err);
+    console.error('MongoDB connection error:', err); // Log connection errors
   }
 }
 
-connectDB(); //call the connectDB function to connect to MongoDB database
+connectDB(); // Call the function to establish the database connection
 
-//Optional if you want the get the collection name from the Fetch API in test3.html then
+// Middleware to dynamically assign a collection to a request
 app.param('collectionName', async function (req, res, next, collectionName) {
-  req.collection = db1.collection(collectionName);
-  /*Check the collection name for debugging if error */
-  console.log('Middleware set collection:', req.collection.collectionName);
+  req.collection = db1.collection(collectionName); // Set the requested collection
+  console.log('Middleware set collection:', req.collection.collectionName); // Log for debugging
   next();
 });
 
-// get all data from our collection in Mongodb
+// Endpoint to fetch all products from the "Products" collection
 app.get('/collections/courses', async function (req, res, next) {
   try {
-    const results = await db1.collection('Products').find({}).toArray();
-
-    console.log('Retrieved data:', results);
-
-    res.json(results); // Send the products to the frontend
-
+    const results = await db1.collection('Products').find({}).toArray(); // Fetch all documents
+    console.log('Retrieved data:', results); // Log retrieved data
+    res.json(results); // Send the data as a JSON response
   } catch (err) {
-    console.error('Error fetching docs', err.message);
-
-    res.status(500).json({ error: 'Failed to fetch products' });
+    console.error('Error fetching docs', err.message); // Log errors
+    res.status(500).json({ error: 'Failed to fetch products' }); // Return error response
   }
 });
 
+// Endpoint to create a new order
 app.post('/collections/orders', async function (req, res, next) {
   try {
-    const { name, surname, phone, totalPrice, courses } = req.body;
+    const { name, surname, phone, totalPrice, courses } = req.body; // Extract request data
 
+    // Validate request body
     if (!name || !surname || !phone || !totalPrice || !courses || !Array.isArray(courses)) {
       return res.status(400).json({ error: 'Invalid or missing fields in the request body' });
     }
 
+    // Create an order object
     const order = {
       name,
       surname,
-      phone, // Include phone number
+      phone,
       totalPrice,
       courses,
-      createdAt: new Date()
+      createdAt: new Date() // Add a timestamp
     };
 
+    // Insert the order into the "Orders" collection
     const results = await db1.collection('Orders').insertOne(order);
 
     res.status(201).json({
       message: 'Order created successfully',
-      orderId: results.insertedId
+      orderId: results.insertedId // Return the inserted order's ID
     });
   } catch (err) {
-    console.error('Error creating order:', err.message);
-    res.status(500).json({ error: 'Failed to create order' });
+    console.error('Error creating order:', err.message); // Log errors
+    res.status(500).json({ error: 'Failed to create order' }); // Return error response
   }
 });
 
-
+// Endpoint to delete a product by title
 app.delete('/collections/products/title/:title', async function (req, res) {
   try {
-    const productTitle = req.params.title;
+    const productTitle = req.params.title; // Extract product title from the URL
+    console.log(`[DELETE] Request to delete product with title: ${productTitle}`);
 
-    // Delete the product by title
+    // Delete the product by its title
     const result = await db1.collection('Products').deleteOne({ title: productTitle });
 
-    // Check if the product was found and deleted
     if (result.deletedCount === 0) {
-      return res.status(404).json({ error: 'Product not found' });
+      return res.status(404).json({ error: 'Product not found' }); // Return 404 if not found
     }
 
     res.status(200).json({ message: 'Product deleted successfully' });
   } catch (err) {
-    console.error('Error deleting product by title:', err.message);
-    res.status(500).json({ error: 'Failed to delete product' });
+    console.error('Error deleting product by title:', err.message); // Log errors
+    res.status(500).json({ error: 'Failed to delete product' }); // Return error response
   }
 });
 
+// Endpoint to update product availability
 app.put('/collections/products/update-availability', async function (req, res) {
   try {
-    const { products } = req.body;
+    const { products } = req.body; // Extract product data from request body
 
     // Validate the request body
     if (!products || !Array.isArray(products)) {
       return res.status(400).json({ error: 'Invalid or missing products data' });
     }
 
-    // Iterate over the products and update availability for each
+    // Update availability for each product
     for (const product of products) {
       if (!product.title || !product.quantity) {
         return res.status(400).json({ error: 'Each product must have a title and quantity' });
       }
 
-      // Update the product's available inventory
       const result = await db1.collection('Products').updateOne(
         { title: product.title },
         { $inc: { availableInventory: -product.quantity } }
       );
 
-      // Check if the product was found and updated
       if (result.matchedCount === 0) {
-        console.warn(`Product with title "${product.title}" not found`);
+        console.warn(`Product with title "${product.title}" not found`); // Warn if product not found
       }
     }
 
-    // Respond with success
     res.status(200).json({ message: 'Product availability updated successfully' });
   } catch (err) {
-    console.error('Error updating product availability:', err.message);
+    console.error('Error updating product availability:', err.message); // Log errors
     res.status(500).json({ error: 'Failed to update product availability' });
   }
 });
 
+// Endpoint to search for products
 app.get('/collections/products/search', async function (req, res) {
   try {
-    const { search = '', sortKey = 'title', sortOrder = 'asc' } = req.query;
+    const { search = '', sortKey = 'title', sortOrder = 'asc' } = req.query; // Extract query params
 
-    // Log the incoming request for debugging
-    console.log('Search Query:', search);
-    console.log('Sort Key:', sortKey);
-    console.log('Sort Order:', sortOrder);
+    console.log('Search Query:', search); // Log search query
+    console.log('Sort Key:', sortKey, 'Sort Order:', sortOrder); // Log sorting options
 
-    // Build the search query: Matches title, description, or location
+    // Build search query
     const query = search
       ? {
-        $or: [
-          { title: { $regex: search, $options: 'i' } },
-          { description: { $regex: search, $options: 'i' } },
-          { location: { $regex: search, $options: 'i' } }
-        ]
-      }
+          $or: [
+            { title: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } },
+            { location: { $regex: search, $options: 'i' } }
+          ]
+        }
       : {};
 
-    // Sort options: Use `1` for ascending and `-1` for descending
-    const sortOptions = { [sortKey]: sortOrder === 'asc' ? 1 : -1 };
+    const sortOptions = { [sortKey]: sortOrder === 'asc' ? 1 : -1 }; // Determine sort order
 
-    // Fetch filtered and sorted products from MongoDB
     const results = await db1.collection('Products').find(query).sort(sortOptions).toArray();
 
-    // Log the results for debugging
-    console.log('Search Results:', results);
-
-    // Return the results to the frontend
-    res.status(200).json(results);
+    console.log('Search Results:', results); // Log search results
+    res.status(200).json(results); // Return results to frontend
   } catch (err) {
-    console.error('Error fetching products:', err.message);
+    console.error('Error fetching products:', err.message); // Log errors
     res.status(500).json({ error: 'Failed to fetch products' });
   }
 });
 
+// Global error handler for unhandled errors
 app.use((err, req, res, next) => {
   console.error('Global error handler:', err);
   res.status(500).json({ error: 'An error occurred' });
 });
 
-// Start the server
+// Start the server and listen on a port
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
