@@ -109,26 +109,6 @@ app.post('/collections/orders', async function (req, res, next) {
   }
 });
 
-// Endpoint to delete a product by title
-app.delete('/collections/products/title/:title', async function (req, res) {
-  try {
-    const productTitle = req.params.title; // Extract product title from the URL
-    console.log(`[DELETE] Request to delete product with title: ${productTitle}`);
-
-    // Delete the product by its title
-    const result = await db1.collection('Products').deleteOne({ title: productTitle });
-
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ error: 'Product not found' }); // Return 404 if not found
-    }
-
-    res.status(200).json({ message: 'Product deleted successfully' });
-  } catch (err) {
-    console.error('Error deleting product by title:', err.message); // Log errors
-    res.status(500).json({ error: 'Failed to delete product' }); // Return error response
-  }
-});
-
 // Endpoint to update product availability
 app.put('/collections/products/update-availability', async function (req, res) {
   try {
